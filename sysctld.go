@@ -8,8 +8,9 @@
 //	http://<host>/string/kern/hostname
 //
 // The answer is a JSON encoded object conatining the "Name" of the requested
-// value and the actual "Value". If something went wrong an error message can
-// be found in "Error".
+// value and the actual "Value". A RFC1123 compliant "Timestamp" designates the
+// point in time when the data was acquired. If something went wrong an error
+// message can be found in "Error".
 package main
 
 import (
@@ -20,6 +21,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 const (
@@ -36,36 +38,37 @@ const (
 
 // Struct sc represents a sysctl to be encoded in JSON.
 type sc struct {
-	Name  string
-	Value interface{}
+	Name      string
+	Value     interface{}
+	Timestamp string
 }
 
 // sysctlHandler implements http.Handler and handles the sysctl requests.
 type sysctlHandler struct {
-	sysctlFunc func(name string) (sysctl *sc, err error)
+	sysctlFunc func(name string, timestamp string) (sysctl *sc, err error)
 }
 
 // newSysctlHandler creates a new sysctlHandler for the sysctlType t.
 func newSysctlHandler(t sysctlType) (s *sysctlHandler) {
-	var sysctlFunc func(name string) (s *sc, err error)
+	var sysctlFunc func(name string, timestamp string) (s *sc, err error)
 
 	switch {
 	case t == SCT_STRING:
-		sysctlFunc = func(name string) (s *sc, err error) {
+		sysctlFunc = func(name string, timestamp string) (s *sc, err error) {
 			val, err := sysctl.GetString(name)
 			if err != nil {
 				return
 			}
-			s = &sc{Name: name, Value: val}
+			s = &sc{Name: name, Value: val, Timestamp: timestamp}
 			return
 		}
 	case t == SCT_INTEGER:
-		sysctlFunc = func(name string) (s *sc, err error) {
+		sysctlFunc = func(name string, timestamp string) (s *sc, err error) {
 			val, err := sysctl.GetInt64(name)
 			if err != nil {
 				return
 			}
-			s = &sc{Name: name, Value: val}
+			s = &sc{Name: name, Value: val, Timestamp: timestamp}
 			return
 		}
 	}
@@ -77,12 +80,19 @@ func newSysctlHandler(t sysctlType) (s *sysctlHandler) {
 // ServeHTTP serves the requested sysctl encoded in JSON.
 func (h *sysctlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := strings.Replace(r.URL.Path, "/", ".", -1)
-	val, err := h.sysctlFunc(path)
+	timestamp := time.Now().Format(time.RFC1123)
+	val, err := h.sysctlFunc(path, timestamp)
 	if err != nil {
 		message := fmt.Sprintf("Could not get sysctl %v: %v", path, err)
 		log.Printf(message)
 
-		e := struct{ Error string }{Error: message}
+		e := struct {
+			Error     string
+			Timestamp string
+		}{
+			Error:     message,
+			Timestamp: timestamp,
+		}
 		encoder := json.NewEncoder(w)
 		if err := encoder.Encode(e); err != nil {
 			log.Printf("error: encoder.Encode: %v", err)
