@@ -7,7 +7,7 @@
 // To get the hostname (kern.hostname) the corresponding request is
 //	http://<host>/string/kern/hostname
 //
-// The answer is a JSON encoded object conatining the "Name" of the requested
+// The answer is a JSON encoded object containing the "Name" of the requested
 // value and the actual "Value". A RFC1123 compliant "Timestamp" designates the
 // point in time when the data was acquired. If something went wrong an error
 // message can be found in "Error".
