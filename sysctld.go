@@ -79,6 +79,8 @@ func newSysctlHandler(t sysctlType) (s *sysctlHandler) {
 
 // ServeHTTP serves the requested sysctl encoded in JSON.
 func (h *sysctlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
+
 	path := strings.Replace(r.URL.Path, "/", ".", -1)
 	timestamp := time.Now().Format(time.RFC1123)
 	val, err := h.sysctlFunc(path, timestamp)
