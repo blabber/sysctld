@@ -81,6 +81,13 @@ func newSysctlHandler(t sysctlType) (s *sysctlHandler) {
 func (h *sysctlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
+	if origin := r.Header.Get("Origin"); origin != "" {
+		// Enable Cross-Origin Resource Sharing (CORS)
+		w.Header().Add("Access-Control-Allow-Origin", origin)
+		w.Header().Add("Access-Control-Allow-Headers", "content-type")
+		w.Header().Add("Access-Control-Allow-Method", "GET")
+	}
+
 	path := strings.Replace(r.URL.Path, "/", ".", -1)
 	timestamp := time.Now().Format(time.RFC1123)
 	val, err := h.sysctlFunc(path, timestamp)
