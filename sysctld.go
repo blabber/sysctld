@@ -108,6 +108,7 @@ func (h *sysctlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Error:     message,
 			Timestamp: timestamp,
 		}
+		w.WriteHeader(http.StatusNotFound)
 		encoder := json.NewEncoder(w)
 		if err := encoder.Encode(e); err != nil {
 			log.Printf("error: encoder.Encode: %v", err)
