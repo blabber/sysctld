@@ -47,20 +47,22 @@ type sc struct {
 	Name      string
 	Value     interface{}
 	Timestamp string
+	Error     string
 }
 
 // sysctlHandler implements http.Handler and handles the sysctl requests.
 type sysctlHandler struct {
-	sysctlFunc func(name string, timestamp string) (sysctl *sc, err error)
+	scType sysctlType
+	scFunc func(name string, timestamp string) (sysctl *sc, err error)
 }
 
 // newSysctlHandler creates a new sysctlHandler for the sysctlType t.
 func newSysctlHandler(t sysctlType) (s *sysctlHandler) {
-	var sysctlFunc func(name string, timestamp string) (s *sc, err error)
+	var scFunc func(name string, timestamp string) (s *sc, err error)
 
 	switch {
 	case t == SCT_STRING:
-		sysctlFunc = func(name string, timestamp string) (s *sc, err error) {
+		scFunc = func(name string, timestamp string) (s *sc, err error) {
 			val, err := sysctl.GetString(name)
 			if err != nil {
 				return
@@ -69,7 +71,7 @@ func newSysctlHandler(t sysctlType) (s *sysctlHandler) {
 			return
 		}
 	case t == SCT_INTEGER:
-		sysctlFunc = func(name string, timestamp string) (s *sc, err error) {
+		scFunc = func(name string, timestamp string) (s *sc, err error) {
 			val, err := sysctl.GetInt64(name)
 			if err != nil {
 				return
@@ -79,7 +81,7 @@ func newSysctlHandler(t sysctlType) (s *sysctlHandler) {
 		}
 	}
 
-	s = &sysctlHandler{sysctlFunc: sysctlFunc}
+	s = &sysctlHandler{scFunc: scFunc, scType: t}
 	return
 }
 
@@ -96,17 +98,17 @@ func (h *sysctlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	path := strings.Replace(r.URL.Path, "/", ".", -1)
 	timestamp := time.Now().Format(time.RFC1123)
-	val, err := h.sysctlFunc(path, timestamp)
+	val, err := h.scFunc(path, timestamp)
 	if err != nil {
 		message := fmt.Sprintf("Could not get sysctl %v: %v", path, err)
 		log.Printf(message)
 
-		e := struct {
-			Error     string
-			Timestamp string
-		}{
-			Error:     message,
-			Timestamp: timestamp,
+		e := &sc{Name: path, Error: message, Timestamp: timestamp}
+		switch {
+		case h.scType == SCT_INTEGER:
+			e.Value = 0
+		case h.scType == SCT_STRING:
+			e.Value = ""
 		}
 		w.WriteHeader(http.StatusNotFound)
 		encoder := json.NewEncoder(w)
