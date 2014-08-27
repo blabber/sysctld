@@ -28,8 +28,8 @@ var sysctlTests = []struct {
 }{
 	{"kern.hostname", SCT_STRING, http.StatusOK},
 	{"hw.ncpu", SCT_INTEGER, http.StatusOK},
-	{"non.existent", SCT_INTEGER, http.StatusNotFound},
 	{"non.existent", SCT_STRING, http.StatusNotFound},
+	{"non.existent", SCT_INTEGER, http.StatusNotFound},
 }
 
 var expectedHeaders = []struct {
@@ -63,9 +63,11 @@ func TestSysctls(t *testing.T) {
 		var handler http.Handler
 		switch {
 		case test.sctype == SCT_INTEGER:
-			handler = http.StripPrefix(integerPrefix, newSysctlHandler(SCT_INTEGER))
+			handler = http.StripPrefix(integerPrefix,
+				corsWrapper(newSysctlHandler(SCT_INTEGER)))
 		case test.sctype == SCT_STRING:
-			handler = http.StripPrefix(stringPrefix, newSysctlHandler(SCT_STRING))
+			handler = http.StripPrefix(stringPrefix,
+				corsWrapper(newSysctlHandler(SCT_STRING)))
 		}
 
 		recorder := httptest.NewRecorder()

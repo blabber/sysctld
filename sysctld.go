@@ -78,15 +78,8 @@ func newSysctlHandler(t sysctlType) *sysctlHandler {
 }
 
 // ServeHTTP serves the requested sysctl encoded in JSON.
-func (h *sysctlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h sysctlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
-
-	if origin := r.Header.Get("Origin"); origin != "" {
-		// Enable Cross-Origin Resource Sharing (CORS)
-		w.Header().Add("Access-Control-Allow-Origin", origin)
-		w.Header().Add("Access-Control-Allow-Headers", "content-type")
-		w.Header().Add("Access-Control-Allow-Method", "GET")
-	}
 
 	name := strings.Replace(r.URL.Path, "/", ".", -1)
 	timestamp := time.Now().Format(time.RFC1123)
@@ -117,9 +110,26 @@ func (h *sysctlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// corsWrapper returns a handler that serves HTTP requests by adding
+// Cross-Origin Resource Sharing (CORS) headers to the response and invoking
+// the handler h.
+func corsWrapper(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if origin := r.Header.Get("Origin"); origin != "" {
+			w.Header().Add("Access-Control-Allow-Origin", origin)
+			w.Header().Add("Access-Control-Allow-Headers", "content-type")
+			w.Header().Add("Access-Control-Allow-Method", "GET")
+		}
+
+		h.ServeHTTP(w, r)
+	})
+}
+
 func main() {
-	http.Handle(stringPrefix, http.StripPrefix(stringPrefix, newSysctlHandler(SCT_STRING)))
-	http.Handle(integerPrefix, http.StripPrefix(integerPrefix, newSysctlHandler(SCT_INTEGER)))
+	http.Handle(stringPrefix, http.StripPrefix(stringPrefix,
+		corsWrapper(newSysctlHandler(SCT_STRING))))
+	http.Handle(integerPrefix, http.StripPrefix(integerPrefix,
+		corsWrapper(newSysctlHandler(SCT_INTEGER))))
 
 	address := flag.String("address", ":8080", "address to listen on")
 	flag.Parse()
