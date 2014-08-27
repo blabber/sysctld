@@ -23,11 +23,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/blabber/go-freebsd-sysctl/sysctl"
 	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/blabber/go-freebsd-sysctl/sysctl"
 )
 
 const (
