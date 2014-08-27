@@ -54,36 +54,27 @@ type sc struct {
 // sysctlHandler implements http.Handler and handles the sysctl requests.
 type sysctlHandler struct {
 	scType sysctlType
-	scFunc func(name string, timestamp string) (sysctl *sc, err error)
+	scFunc func(string) (interface{}, error)
 }
 
 // newSysctlHandler creates a new sysctlHandler for the sysctlType t.
-func newSysctlHandler(t sysctlType) (s *sysctlHandler) {
-	var scFunc func(name string, timestamp string) (s *sc, err error)
+func newSysctlHandler(t sysctlType) *sysctlHandler {
+	var scFunc func(string) (interface{}, error)
 
 	switch {
 	case t == SCT_STRING:
-		scFunc = func(name string, timestamp string) (s *sc, err error) {
-			val, err := sysctl.GetString(name)
-			if err != nil {
-				return
-			}
-			s = &sc{Name: name, Value: val, Timestamp: timestamp}
+		scFunc = func(name string) (v interface{}, err error) {
+			v, err = sysctl.GetString(name)
 			return
 		}
 	case t == SCT_INTEGER:
-		scFunc = func(name string, timestamp string) (s *sc, err error) {
-			val, err := sysctl.GetInt64(name)
-			if err != nil {
-				return
-			}
-			s = &sc{Name: name, Value: val, Timestamp: timestamp}
+		scFunc = func(name string) (v interface{}, err error) {
+			v, err = sysctl.GetInt64(name)
 			return
 		}
 	}
 
-	s = &sysctlHandler{scFunc: scFunc, scType: t}
-	return
+	return &sysctlHandler{scFunc: scFunc, scType: t}
 }
 
 // ServeHTTP serves the requested sysctl encoded in JSON.
@@ -97,31 +88,30 @@ func (h *sysctlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Access-Control-Allow-Method", "GET")
 	}
 
-	path := strings.Replace(r.URL.Path, "/", ".", -1)
+	name := strings.Replace(r.URL.Path, "/", ".", -1)
 	timestamp := time.Now().Format(time.RFC1123)
-	val, err := h.scFunc(path, timestamp)
+	sc := &sc{Timestamp: timestamp, Name: name}
+
+	var val interface{}
+	val, err := h.scFunc(name)
 	if err != nil {
-		message := fmt.Sprintf("Could not get sysctl %v: %v", path, err)
+		message := fmt.Sprintf("Could not get sysctl %v: %v", name, err)
 		log.Printf(message)
 
-		e := &sc{Name: path, Error: message, Timestamp: timestamp}
+		sc.Error = message
 		switch {
 		case h.scType == SCT_INTEGER:
-			e.Value = 0
+			val = 0
 		case h.scType == SCT_STRING:
-			e.Value = ""
+			val = ""
 		}
+
 		w.WriteHeader(http.StatusNotFound)
-		encoder := json.NewEncoder(w)
-		if err := encoder.Encode(e); err != nil {
-			log.Printf("error: encoder.Encode: %v", err)
-			return
-		}
-		return
 	}
+	sc.Value = val
 
 	encoder := json.NewEncoder(w)
-	if err := encoder.Encode(val); err != nil {
+	if err := encoder.Encode(sc); err != nil {
 		log.Printf("error: encoder.Encode: %v", err)
 		return
 	}
