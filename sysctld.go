@@ -36,6 +36,7 @@ const (
 	integerPrefix = "/sysctl/integer/"
 )
 
+// A sysctlType describes the type of the requested sysctl.
 type sysctlType int
 
 const (
@@ -53,24 +54,24 @@ type sc struct {
 
 // sysctlHandler implements http.Handler and handles the sysctl requests.
 type sysctlHandler struct {
-	scDefault interface{}
-	scType    sysctlType
-	scFunc    func(string) (interface{}, error)
+	valueDefault interface{}
+	valueType    sysctlType
+	sysctlCall   func(string) (interface{}, error)
 }
 
 // newSysctlHandler creates a new sysctlHandler for the sysctlType t.
 func newSysctlHandler(t sysctlType) *sysctlHandler {
-	sc := &sysctlHandler{scType: t}
+	sc := &sysctlHandler{valueType: t}
 
 	switch {
 	case t == sctString:
-		sc.scDefault = ""
-		sc.scFunc = func(name string) (interface{}, error) {
+		sc.valueDefault = ""
+		sc.sysctlCall = func(name string) (interface{}, error) {
 			return sysctl.GetString(name)
 		}
 	case t == sctInteger:
-		sc.scDefault = 0
-		sc.scFunc = func(name string) (interface{}, error) {
+		sc.valueDefault = 0
+		sc.sysctlCall = func(name string) (interface{}, error) {
 			return sysctl.GetInt64(name)
 		}
 	}
@@ -87,13 +88,13 @@ func (h sysctlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	sc := &sc{Timestamp: timestamp, Name: name}
 
 	var val interface{}
-	val, err := h.scFunc(name)
+	val, err := h.sysctlCall(name)
 	if err != nil {
 		message := fmt.Sprintf("Could not get sysctl %v: %v", name, err)
 		log.Printf(message)
 
 		sc.Error = message
-		sc.Value = h.scDefault
+		sc.Value = h.valueDefault
 
 		w.WriteHeader(http.StatusNotFound)
 	}
