@@ -49,9 +49,9 @@ func TestSysctls(t *testing.T) {
 		var uri string
 		switch {
 		case test.sctype == sctInteger:
-			uri = baseURI + integerPrefix + strings.Replace(test.name, "/", ".", -1)
+			uri = baseURI + integerPrefix + strings.Replace(test.name, ".", "/", -1)
 		case test.sctype == sctString:
-			uri = baseURI + stringPrefix + strings.Replace(test.name, "/", ".", -1)
+			uri = baseURI + stringPrefix + strings.Replace(test.name, ".", "/", -1)
 		}
 
 		request, err := http.NewRequest("GET", uri, nil)
