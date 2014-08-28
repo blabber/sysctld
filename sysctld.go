@@ -39,8 +39,8 @@ const (
 type sysctlType int
 
 const (
-	SCT_STRING sysctlType = iota
-	SCT_INTEGER
+	sctString sysctlType = iota
+	sctInteger
 )
 
 // Struct sc represents a sysctl to be encoded in JSON.
@@ -63,12 +63,12 @@ func newSysctlHandler(t sysctlType) *sysctlHandler {
 	sc := &sysctlHandler{scType: t}
 
 	switch {
-	case t == SCT_STRING:
+	case t == sctString:
 		sc.scDefault = ""
 		sc.scFunc = func(name string) (interface{}, error) {
 			return sysctl.GetString(name)
 		}
-	case t == SCT_INTEGER:
+	case t == sctInteger:
 		sc.scDefault = 0
 		sc.scFunc = func(name string) (interface{}, error) {
 			return sysctl.GetInt64(name)
@@ -122,9 +122,9 @@ func corsWrapper(h http.Handler) http.Handler {
 
 func main() {
 	http.Handle(stringPrefix, http.StripPrefix(stringPrefix,
-		corsWrapper(newSysctlHandler(SCT_STRING))))
+		corsWrapper(newSysctlHandler(sctString))))
 	http.Handle(integerPrefix, http.StripPrefix(integerPrefix,
-		corsWrapper(newSysctlHandler(SCT_INTEGER))))
+		corsWrapper(newSysctlHandler(sctInteger))))
 
 	address := flag.String("address", ":8080", "address to listen on")
 	flag.Parse()

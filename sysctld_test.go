@@ -26,10 +26,10 @@ var sysctlTests = []struct {
 	sctype     sysctlType
 	statusCode int
 }{
-	{"kern.hostname", SCT_STRING, http.StatusOK},
-	{"hw.ncpu", SCT_INTEGER, http.StatusOK},
-	{"non.existent", SCT_STRING, http.StatusNotFound},
-	{"non.existent", SCT_INTEGER, http.StatusNotFound},
+	{"kern.hostname", sctString, http.StatusOK},
+	{"hw.ncpu", sctInteger, http.StatusOK},
+	{"non.existent", sctString, http.StatusNotFound},
+	{"non.existent", sctInteger, http.StatusNotFound},
 }
 
 var expectedHeaders = []struct {
@@ -48,9 +48,9 @@ func TestSysctls(t *testing.T) {
 
 		var uri string
 		switch {
-		case test.sctype == SCT_INTEGER:
+		case test.sctype == sctInteger:
 			uri = baseURI + integerPrefix + strings.Replace(test.name, "/", ".", -1)
-		case test.sctype == SCT_STRING:
+		case test.sctype == sctString:
 			uri = baseURI + stringPrefix + strings.Replace(test.name, "/", ".", -1)
 		}
 
@@ -62,12 +62,12 @@ func TestSysctls(t *testing.T) {
 
 		var handler http.Handler
 		switch {
-		case test.sctype == SCT_INTEGER:
+		case test.sctype == sctInteger:
 			handler = http.StripPrefix(integerPrefix,
-				corsWrapper(newSysctlHandler(SCT_INTEGER)))
-		case test.sctype == SCT_STRING:
+				corsWrapper(newSysctlHandler(sctInteger)))
+		case test.sctype == sctString:
 			handler = http.StripPrefix(stringPrefix,
-				corsWrapper(newSysctlHandler(SCT_STRING)))
+				corsWrapper(newSysctlHandler(sctString)))
 		}
 
 		recorder := httptest.NewRecorder()
@@ -101,13 +101,13 @@ func TestSysctls(t *testing.T) {
 
 		// check JSON: Value
 		switch {
-		case test.sctype == SCT_INTEGER:
+		case test.sctype == sctInteger:
 			// float64 is the generic type the Decoder uses for numbers
 			_, ok := s.Value.(float64)
 			if !ok {
 				t.Fatalf("Value is not an float64 but %T", s.Value)
 			}
-		case test.sctype == SCT_STRING:
+		case test.sctype == sctString:
 			_, ok := s.Value.(string)
 			if !ok {
 				t.Fatalf("Value is not a string but %T", s.Value)
