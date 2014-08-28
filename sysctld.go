@@ -63,13 +63,13 @@ type sysctlHandler struct {
 func newSysctlHandler(t sysctlType) *sysctlHandler {
 	sc := &sysctlHandler{valueType: t}
 
-	switch {
-	case t == sctString:
+	switch t {
+	case sctString:
 		sc.valueDefault = ""
 		sc.sysctlCall = func(name string) (interface{}, error) {
 			return sysctl.GetString(name)
 		}
-	case t == sctInteger:
+	case sctInteger:
 		sc.valueDefault = 0
 		sc.sysctlCall = func(name string) (interface{}, error) {
 			return sysctl.GetInt64(name)
@@ -84,6 +84,7 @@ func (h sysctlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
 	name := strings.Replace(r.URL.Path, "/", ".", -1)
+
 	timestamp := time.Now().Format(time.RFC1123)
 	sc := &sc{Timestamp: timestamp, Name: name}
 
