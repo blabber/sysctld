@@ -53,28 +53,29 @@ type sc struct {
 
 // sysctlHandler implements http.Handler and handles the sysctl requests.
 type sysctlHandler struct {
-	scType sysctlType
-	scFunc func(string) (interface{}, error)
+	scDefault interface{}
+	scType    sysctlType
+	scFunc    func(string) (interface{}, error)
 }
 
 // newSysctlHandler creates a new sysctlHandler for the sysctlType t.
 func newSysctlHandler(t sysctlType) *sysctlHandler {
-	var scFunc func(string) (interface{}, error)
+	sc := &sysctlHandler{scType: t}
 
 	switch {
 	case t == SCT_STRING:
-		scFunc = func(name string) (v interface{}, err error) {
-			v, err = sysctl.GetString(name)
-			return
+		sc.scDefault = ""
+		sc.scFunc = func(name string) (interface{}, error) {
+			return sysctl.GetString(name)
 		}
 	case t == SCT_INTEGER:
-		scFunc = func(name string) (v interface{}, err error) {
-			v, err = sysctl.GetInt64(name)
-			return
+		sc.scDefault = 0
+		sc.scFunc = func(name string) (interface{}, error) {
+			return sysctl.GetInt64(name)
 		}
 	}
 
-	return &sysctlHandler{scFunc: scFunc, scType: t}
+	return sc
 }
 
 // ServeHTTP serves the requested sysctl encoded in JSON.
@@ -92,12 +93,7 @@ func (h sysctlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Printf(message)
 
 		sc.Error = message
-		switch {
-		case h.scType == SCT_INTEGER:
-			val = 0
-		case h.scType == SCT_STRING:
-			val = ""
-		}
+		sc.Value = h.scDefault
 
 		w.WriteHeader(http.StatusNotFound)
 	}
@@ -106,7 +102,6 @@ func (h sysctlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	encoder := json.NewEncoder(w)
 	if err := encoder.Encode(sc); err != nil {
 		log.Printf("error: encoder.Encode: %v", err)
-		return
 	}
 }
 
