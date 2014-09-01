@@ -44,6 +44,20 @@ const (
 	sctInteger
 )
 
+// String returns a string representation of a sysctlType.
+func (t sysctlType) String() string {
+	var s string
+
+	switch t {
+	case sctString:
+		s = "sctString"
+	case sctInteger:
+		s = "sctInteger"
+	}
+
+	return s
+}
+
 // Struct sc represents a sysctl to be encoded in JSON.
 type sc struct {
 	Name      string
@@ -80,7 +94,7 @@ func newSysctlHandler(t sysctlType) *sysctlHandler {
 }
 
 // ServeHTTP serves the requested sysctl encoded in JSON.
-func (h sysctlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *sysctlHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
 	name := strings.Replace(r.URL.Path, "/", ".", -1)
