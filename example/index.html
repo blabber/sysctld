@@ -1,0 +1,129 @@
+<!--
+// "THE BEER-WARE LICENSE" (Revision 42):
+// <tobias.rehbein@web.de> wrote this file. As long as you retain this notice
+// you can do whatever you want with this stuff. If we meet some day, and you
+// think this stuff is worth it, you can buy me a beer in return.
+//                                                             Tobias Rehbein
+
+This is a simple example frontend for sysctld.
+
+It displays the temperature of CPU 0, the temperature of thermal zone 0, fan speed
+and CPU frequency. The display refreshes itself every three seconds.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<title>Temperature Monitor</title>
+
+	<script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-2.1.1.min.js"></script>
+	<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+	<script src="http://ajax.aspnetcdn.com/ajax/knockout/knockout-3.1.0.js"></script>
+
+	<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+</head>
+<body>
+	<div class="navbar navbar-default" role="navigation">
+		<div class="container-fluid">
+			<div class="navbar-header">
+				<a class="navbar-brand" href="#">Temperature Monitor</a>
+			</div>
+		</div>
+	</div>
+	<div class="container-fluid">
+		<div class="row">
+			<div class="col-md-1 col-sm-2 col-xs-3">
+				<h4/>Gehäuse</h4>
+				<p><span data-bind="text: caseTemperatureCelsius"></span>°C</p>
+			</div>
+			<div class="col-md-1 col-sm-2 col-xs-3">
+				<h4/>CPU</h4>
+				<p><span data-bind="text: cpuTemperatureCelsius"></span>°C</p>
+			</div>
+			<div class="col-md-1 col-sm-2 col-xs-3">
+				<h4/>Fan</h4>
+				<p><span data-bind="text: fan().Value"></span></p>
+			</div>
+			<div class="col-md-1 col-sm-2 col-xs-3">
+				<h4/>Freq</h4>
+				<p><span data-bind="text: freq().Value"></span></p>
+			</div>
+		</div>
+		<hr/>
+		<footer>
+			<p><span data-bind="text: freq().Timestamp"></span></p>
+		</footer>
+	</div>
+
+	<script type="text/javascript">
+		function ViewModel() {
+			var self = this;
+
+			self.computeCelsius = function(raw) {
+				return ((raw / 10) - 273.15).toFixed(0);
+			}
+
+			self.caseTemperature = ko.observable({"Name":"n/a", "Value":"n/a"});
+			self.caseTemperatureCelsius = ko.computed(function() {
+				return self.computeCelsius(self.caseTemperature().Value);
+			}, self);
+
+			self.cpuTemperature = ko.observable({"Name":"Test", "Value":"Test"});
+			self.cpuTemperatureCelsius = ko.computed(function() {
+				return self.computeCelsius(self.cpuTemperature().Value);
+			}, self);
+
+			self.freq = ko.observable({"Name":"n/a", "Value":"n/a", "Timestamp":"n/a"});
+			self.fan = ko.observable({"Name":"n/a", "Value":"n/a"});
+
+			self.baseUri = 'http://' + window.location.hostname + ':8080/sysctl/';
+			self.caseTempUri = self.baseUri + 'integer/hw/acpi/thermal/tz0/temperature';
+			self.cpuTempUri = self.baseUri + 'integer/dev/cpu/0/temperature';
+			self.freqUri = self.baseUri + 'integer/dev/cpu/0/freq';
+			self.fanUri = self.baseUri + 'integer/dev/acpi_ibm/0/fan_speed';
+
+			self.ajax = function(uri, method, data) {
+				var request = {
+					url: uri,
+					type: method,
+					contentType: "application/json",
+					crossDomain: true,
+					accepts: "application/json",
+					cache: false,
+					dataType: 'json',
+					data: JSON.stringify(data),
+				};
+				return $.ajax(request);
+			};
+
+			self.refreshData = function() {
+				self.ajax(self.caseTempUri, 'GET').done(function(data) {
+					self.caseTemperature(data);
+				});
+				self.ajax(self.cpuTempUri, 'GET').done(function(data) {
+					self.cpuTemperature(data);
+				});
+				self.ajax(self.freqUri, 'GET').done(function(data) {
+					self.freq(data);
+				});
+				self.ajax(self.fanUri, 'GET').done(function(data) {
+					self.fan(data);
+				});
+			};
+
+			self.refreshData();
+
+			this.tick = function() {
+				self.refreshData();
+			};
+
+			setInterval(self.tick, 3000);
+		}
+
+		ko.applyBindings(new ViewModel());
+	</script>
+</body>
+</html>
